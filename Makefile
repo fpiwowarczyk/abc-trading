@@ -10,6 +10,10 @@ build:
 test:
 	go test -v ./...
 
+.PHONY: bench
+bench:
+	go test -bench=. ./... -benchmem
+
 .PHONY: clean
 clean:
 	rm -rf bin

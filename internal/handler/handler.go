@@ -7,7 +7,6 @@ import (
 	"strconv"
 
 	"github.com/fpiwowarczyk/abc-trading/internal/config"
-	"github.com/fpiwowarczyk/abc-trading/internal/stats"
 	"github.com/fpiwowarczyk/abc-trading/internal/transactions"
 )
 
@@ -37,6 +36,8 @@ func addRoutes(mux *http.ServeMux, transactionsStore transactions.Store) {
 // Example request:
 // curl -X POST -d '{"symbol":"AAPL","values":[1,2,3,4,5]}' http://localhost:8080/add_batch/
 func handleAddBatch(transactionsStore transactions.Store) http.HandlerFunc {
+	const maxBatchSize = 10_000
+
 	type request struct {
 		Symbol string    `json:"symbol"`
 		Values []float64 `json:"values"`
@@ -50,8 +51,8 @@ func handleAddBatch(transactionsStore transactions.Store) http.HandlerFunc {
 			return
 		}
 
-		if len(req.Values) > 10_000 { // Maybe move it to tags?
-			http.Error(w, "too many values", http.StatusBadRequest)
+		if len(req.Values) > maxBatchSize {
+			http.Error(w, fmt.Sprintf("batch size is too big, max is %d", maxBatchSize), http.StatusBadRequest)
 			return
 		}
 
@@ -64,7 +65,7 @@ func handleAddBatch(transactionsStore transactions.Store) http.HandlerFunc {
 
 // handleStats allows to get statistics for specific symbol based on 10^k last data points.
 // Example request:
-// curl -X GET  http://localhost:8080/stats?symbol=AAPL&k=3
+// curl -X GET  http://localhost:8080/stats/?symbol=AAPL&k=3
 func handleStats(transactionsStore transactions.Store) http.HandlerFunc {
 	type request struct {
 		Symbol string `json:"symbol"`
@@ -82,8 +83,8 @@ func handleStats(transactionsStore transactions.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		params := r.URL.Query()
 
-		symbol := params.Get("symbol")
-		if symbol == "" {
+		symbolName := params.Get("symbol")
+		if symbolName == "" {
 			http.Error(w, "symbol is required", http.StatusBadRequest)
 			return
 		}
@@ -94,24 +95,26 @@ func handleStats(transactionsStore transactions.Store) http.HandlerFunc {
 			return
 		}
 
-		values, err := transactionsStore.Get(symbol, k)
+		if k < 1 || k > 8 {
+			http.Error(w, "k should be in the range from 1 to 8, inclusive", http.StatusBadRequest)
+			return
+		}
+
+		symbol, err := transactionsStore.Get(symbolName)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("could not get: %v", err), http.StatusInternalServerError)
 			return
 		}
 
-		if values == nil {
-			http.Error(w, "symbol not found", http.StatusNotFound)
-			return
+		res := response{
+			Last: symbol.Last,
+			Min:  symbol.Buckets[k-1].Min,
+			Max:  symbol.Buckets[k-1].Max,
+			Avg:  symbol.Buckets[k-1].Avg,
+			Var:  symbol.Buckets[k-1].Varian,
 		}
 
-		res := response{
-			Min:  stats.FindMin(values),
-			Max:  stats.FindMax(values),
-			Last: stats.FindLast(values),
-			Avg:  stats.FindAvg(values),
-			Var:  stats.FindVar(values),
-		}
+		log.Printf("%+v \n", symbol.Buckets[k-1])
 
 		if err := encode(w, r, http.StatusOK, res); err != nil {
 			http.Error(w, fmt.Sprintf("error encoding: %v", err), http.StatusInternalServerError)

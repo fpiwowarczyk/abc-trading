@@ -12,7 +12,7 @@ import (
 
 func main() {
 
-	inMemStore := transactions.NewCustomInMemStore()
+	inMemStore := transactions.NewInMemStore()
 
 	cfg := config.NewConfig()
 

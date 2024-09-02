@@ -9,6 +9,10 @@ import (
 
 var _ Store = &InMemStore{}
 
+const (
+	MaxBatchSize = 10_000
+)
+
 // ImplStore is using my own implementation of concurrent map. It can be compared with NativeInMemStore.
 type InMemStore struct {
 	symbols *concurrentmap.ConcurrentMap[string, *symbol.Data]
@@ -18,14 +22,14 @@ type InMemStore struct {
 func NewInMemStore(maxK int) *InMemStore {
 	return &InMemStore{
 		symbols: concurrentmap.New[string, *symbol.Data](),
-		MaxK:    maxK,
+		MaxK: 
 	}
 }
 
 func (i *InMemStore) AddBatch(symbolName string, values []float64) error {
 	s, exist := i.symbols.Get(symbolName)
 	if !exist {
-		i.symbols.Set(symbolName, symbol.New(values, i.MaxK))
+		i.symbols.Set(symbolName, symbol.New(values))
 		return nil
 	}
 

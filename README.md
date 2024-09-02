@@ -9,6 +9,4 @@ Add docker
 
 Add documentation
 
-Look for further optimisations
-
 Add tests

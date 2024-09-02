@@ -7,6 +7,12 @@ import (
 	"github.com/fpiwowarczyk/abc-trading/internal/calculations"
 )
 
+const (
+	// MaxK is a exponent of a power of 10, which is used to calculate the maximal number of data
+	// that can be stored for single symbol.
+	MaxK = 8
+)
+
 type Data struct {
 	LastPoint float64
 	Buckets   []*Bucket
@@ -14,36 +20,20 @@ type Data struct {
 	Points []float64
 }
 
+// New creates a new Data strucutre that represends data stored for single symbol.
+// During this operation data is divided into buckets, which are used to store last n points.
+// Number of buckets is specified by MaxK.
 func New(added []float64) *Data {
-	buckets := []*Bucket{
-		{ // k = 1
-			Size: 10,
-		},
-		{ // k = 2
-			Size: 100,
-		},
-		{ // k = 3
-			Size: 1_000,
-		},
-		{ // k = 4
-			Size: 10_000,
-		},
-		{ // k = 5
-			Size: 100_000,
-		},
-		{ // k = 6
-			Size: 1_000_000,
-		},
-		{ // k = 7
-			Size: 10_000_000,
-		},
-		{ // k = 8
-			Size: 100_000_000,
-		},
+	var buckets []*Bucket
+	for k := range MaxK {
+		buckets = append(buckets, &Bucket{
+			Size:   int(math.Pow(10, float64(k+1))),
+			Points: make([]float64, 0),
+		})
 	}
 
 	var lastBucket *Bucket
-	var statsCalculatedForWholeSet bool // by default false
+	var statsCalculatedForWholeSet bool
 
 	for _, b := range buckets {
 		if statsCalculatedForWholeSet {
@@ -81,12 +71,16 @@ func New(added []float64) *Data {
 	}
 }
 
+// Update appends new data points to the existing data set.
+// It also updates statistics for each bucket.
+// If number of data points exceeds then maximal number of points that can be stored for single symbol,
+// then the oldest points are removed.
 func (d *Data) Update(added []float64) *Data {
 	d.LastPoint = added[len(added)-1]
 	d.Points = append(d.Points, added...)
 
-	if len(d.Points) > 100_000_000 {
-		d.Points = d.Points[len(d.Points)-100_000_000:]
+	if len(d.Points) > int(math.Pow(10, MaxK)) {
+		d.Points = d.Points[len(d.Points)-int(math.Pow(10, MaxK)):]
 	}
 
 	var lastBucket *Bucket

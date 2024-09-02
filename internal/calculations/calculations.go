@@ -26,6 +26,8 @@ func RollingAvgVar(oldAvg, oldVar float64,
 	return avg, varian
 }
 
+// MinMaxSumSumSq calculates min, max, sum and sum of squares of the given slice of float64.
+// It is done in one iteration to save time.
 func MinMaxSumSumSq(v []float64) (min, max, sum, sumSq float64) {
 	if len(v) == 0 {
 		return math.NaN(), math.NaN(), 0.0, 0.0

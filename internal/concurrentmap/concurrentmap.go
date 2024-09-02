@@ -8,6 +8,7 @@ type ConcurrentMap[K comparable, V any] struct {
 	mu   sync.RWMutex
 }
 
+// New creates a new instance of ConcurrentMap.
 func New[K comparable, V any]() *ConcurrentMap[K, V] {
 	return &ConcurrentMap[K, V]{
 		data: make(map[K]V),

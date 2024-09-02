@@ -9,12 +9,14 @@ import (
 
 var _ Store = &InMemStore{}
 
-// ImplStore is using my own implementation of concurrent map. It can be compared with NativeInMemStore.
+// ImplStore is using my own implementation of concurrent map. It should be thread safe.
 type InMemStore struct {
 	symbols *concurrentmap.ConcurrentMap[string, *symbol.Data]
-	MaxK    int
+	// MaxK is the number of buckets to store in the symbol each bucket is 10 times bigger than the previous one.
+	MaxK int
 }
 
+// NewInMemStore creates a new instance of InMemStore.
 func NewInMemStore(maxK int) *InMemStore {
 	return &InMemStore{
 		symbols: concurrentmap.New[string, *symbol.Data](),
@@ -22,6 +24,7 @@ func NewInMemStore(maxK int) *InMemStore {
 	}
 }
 
+// AddBatch adds a new batch of values to the symbol. If the symbol does not exist it will be created.
 func (i *InMemStore) AddBatch(symbolName string, values []float64) error {
 	s, exist := i.symbols.Get(symbolName)
 	if !exist {
@@ -34,6 +37,7 @@ func (i *InMemStore) AddBatch(symbolName string, values []float64) error {
 	return nil
 }
 
+// Get returns the symbol data for the given symbol name.
 func (s *InMemStore) Get(symbolName string) (*symbol.Data, error) {
 	sym, ok := s.symbols.Get(symbolName)
 	if !ok {

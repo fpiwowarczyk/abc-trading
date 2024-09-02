@@ -6,8 +6,11 @@ import (
 )
 
 type Config struct {
-	Port     int
-	MaxK     int
+	// Port is the port on which the server will listen.
+	Port int
+	// MaxK is the number of buckets to store in the symbol each bucket is 10 times bigger than the previous one.
+	MaxK int
+	// MaxBatch is the maximum number of points that can be added in a single batch.
 	MaxBatch int
 }
 
@@ -34,6 +37,7 @@ func NewConfig() (*Config, error) {
 	}, nil
 }
 
+// EnvOrDefault returns the value of the environment variable or the default value if the variable is not set.
 func EnvOrDefault(key, defaultValue string) string {
 	v, ok := os.LookupEnv(key)
 	if !ok {

@@ -33,8 +33,9 @@ func addRoutes(mux *http.ServeMux, transactionsStore transactions.Store) {
 }
 
 // handleAddBatch allows to add bulk consecutive data points for specific symbol.
+//
 // Example request:
-// curl -X POST -d '{"symbol":"AAPL","values":[1,2,3,4,5]}' http://localhost:8080/add_batch/
+// curl -X POST -d '{"symbol":"AAPL","values":[1,2,3,4,5,6,7,8,9,0]}' http://localhost:8080/add_batch/
 func handleAddBatch(transactionsStore transactions.Store) http.HandlerFunc {
 	const maxBatchSize = 10_000
 
@@ -64,6 +65,7 @@ func handleAddBatch(transactionsStore transactions.Store) http.HandlerFunc {
 }
 
 // handleStats allows to get statistics for specific symbol based on 10^k last data points.
+//
 // Example request:
 // curl -X GET  http://localhost:8080/stats/?symbol=AAPL&k=3
 func handleStats(transactionsStore transactions.Store) http.HandlerFunc {
@@ -107,7 +109,7 @@ func handleStats(transactionsStore transactions.Store) http.HandlerFunc {
 		}
 
 		res := response{
-			Last: symbol.Last,
+			Last: symbol.LastPoint,
 			Min:  symbol.Buckets[k-1].Min,
 			Max:  symbol.Buckets[k-1].Max,
 			Avg:  symbol.Buckets[k-1].Avg,

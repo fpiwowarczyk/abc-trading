@@ -1,7 +1,6 @@
 package symbol
 
 import (
-	"log"
 	"math"
 	"slices"
 
@@ -9,22 +8,10 @@ import (
 )
 
 type Data struct {
-	Last    float64
-	Buckets []*Bucket
+	LastPoint float64
+	Buckets   []*Bucket
 
 	Points []float64
-}
-
-type Bucket struct {
-	Size   int
-	Min    float64
-	Max    float64
-	Avg    float64
-	Varian float64
-	Points []float64
-
-	Sum   float64
-	SumSq float64
 }
 
 func New(added []float64) *Data {
@@ -55,82 +42,84 @@ func New(added []float64) *Data {
 		},
 	}
 
-	var lastMin, lastMax, lastSum, lastSumSq, lastAvg, lastVarian float64 // by default 0.0
-	var calculatedForWholeSet bool                                        // by default false
+	var lastBucket *Bucket
+	var statsCalculatedForWholeSet bool // by default false
 
 	for _, b := range buckets {
-		if calculatedForWholeSet {
-			b.Min, b.Max, b.Sum, b.SumSq, b.Avg, b.Varian, b.Points = lastMin, lastMax, lastSum, lastSumSq, lastAvg, lastVarian, added
-			log.Println("Bucket", b.Size, "Min", b.Min, "Max", b.Max, "Avg", b.Avg, "Varian", b.Varian, "Points", b.Points)
+		if statsCalculatedForWholeSet {
+			b.setStats(
+				lastBucket.Min, lastBucket.Max,
+				lastBucket.Avg, lastBucket.Varian,
+				lastBucket.Sum, lastBucket.SumSq,
+				lastBucket.Points)
+
 			continue
 		}
 
-		var currentWindow []float64
-		if b.Size < len(added) {
-			currentWindow = added[len(added)-b.Size:]
+		if b.cantFitIntoBucket(len(added)) {
+			b.Points = added[len(added)-b.Size:]
 		} else {
-			currentWindow = added
-			calculatedForWholeSet = true
+			b.Points = added
+			statsCalculatedForWholeSet = true
 		}
 
-		b.Points = currentWindow
-		b.Min, b.Max, b.Sum, b.SumSq = calculations.MinMaxSumSumSq(currentWindow)
-		b.Avg, b.Varian = calculations.RollingAvgAndVar(
+		b.Min, b.Max, b.Sum, b.SumSq = calculations.MinMaxSumSumSq(b.Points)
+		b.Avg, b.Varian = calculations.RollingAvgVar(
 			0.0, 0.0,
 			0.0, 0.0,
 			b.Sum, b.SumSq,
 			0.0, 0.0,
-			len(currentWindow))
+			len(b.Points))
 
-		lastMin, lastMax, lastSum, lastSumSq, lastAvg, lastVarian = b.Min, b.Max, b.Sum, b.SumSq, b.Avg, b.Varian
-
-		log.Println("Bucket", b.Size, "Min", b.Min, "Max", b.Max, "Avg", b.Avg, "Varian", b.Varian, "Points", b.Points)
-
+		lastBucket = b
 	}
 
 	return &Data{
-		Last:    added[len(added)-1],
-		Buckets: buckets,
-		Points:  added,
+		LastPoint: added[len(added)-1],
+		Buckets:   buckets,
+		Points:    added,
 	}
 }
 
 func (d *Data) Update(added []float64) *Data {
-	d.Last = added[len(added)-1]
+	d.LastPoint = added[len(added)-1]
 	d.Points = append(d.Points, added...)
 
 	if len(d.Points) > 100_000_000 {
 		d.Points = d.Points[len(d.Points)-100_000_000:]
 	}
 
-	var lastMin, lastMax, lastSum, lastSumSq, lastAvg, lastVarian float64 // by default 0.0
-	var calculatedForWholeSet bool                                        // by default false
+	var lastBucket *Bucket
+	var calculatedForWholeSet bool
 
 	for _, b := range d.Buckets {
 		if calculatedForWholeSet {
-			b.Min, b.Max, b.Sum, b.SumSq, b.Avg, b.Varian = lastMin, lastMax, lastSum, lastSumSq, lastAvg, lastVarian
+			b.setStats(
+				lastBucket.Min, lastBucket.Max,
+				lastBucket.Avg, lastBucket.Varian,
+				lastBucket.Sum, lastBucket.SumSq,
+				lastBucket.Points)
+
 			continue
 		}
 
 		var out []float64
-		if len(b.Points)+len(added) > b.Size {
+		if b.cantFitIntoBucket(len(added)) {
 			out = b.Points[:len(b.Points)+len(added)-b.Size]
+			b.Points = d.Points[len(d.Points)-b.Size:]
+		} else {
+			calculatedForWholeSet = true
+			b.Points = append(b.Points, added...)
 		}
 
 		addedMin, addedMax, addedSum, addedSumSq := calculations.MinMaxSumSumSq(added)
 		_, _, outSum, outSumSq := calculations.MinMaxSumSumSq(out)
 
-		b.Avg, b.Varian = calculations.RollingAvgAndVar(b.Avg, b.Varian,
+		b.Avg, b.Varian = calculations.RollingAvgVar(b.Avg, b.Varian,
 			b.Sum, b.SumSq,
 			addedSum, addedSumSq,
 			outSum, outSumSq,
-			len(b.Points)+len(added)-len(out))
-
-		if len(b.Points)+len(added) > b.Size {
-			b.Points = d.Points[len(d.Points)-b.Size:]
-		} else {
-			b.Points = append(b.Points, added...)
-		}
+			len(b.Points))
 
 		if slices.Contains(out, b.Min) || slices.Contains(out, b.Max) {
 			b.Min, b.Max, b.Sum, b.SumSq = calculations.MinMaxSumSumSq(b.Points)
@@ -141,8 +130,7 @@ func (d *Data) Update(added []float64) *Data {
 			b.SumSq += addedSumSq - outSumSq
 		}
 
-		log.Println("Bucket", b.Size, "Min", b.Min, "Max", b.Max, "Avg", b.Avg, "Varian", b.Varian, "Points", b.Points)
-
+		lastBucket = b
 	}
 
 	return d

@@ -3,7 +3,7 @@ package calculations
 import "math"
 
 // RollingAvgAngVariance main purpose is to calculate new variance but part of this calculations is to calculate new average.
-func RollingAvgAndVar(oldAvg, oldVar float64,
+func RollingAvgVar(oldAvg, oldVar float64,
 	oldSetSum, oldSetSumSq,
 	newSetSum, newSetSumSq,
 	removedSetSum, removedSetSumSq float64,

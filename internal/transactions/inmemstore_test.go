@@ -9,7 +9,7 @@ import (
 
 func Test_CustomStore(t *testing.T) {
 	t.Run("AddBatch", func(t *testing.T) {
-		store := transactions.NewInMemStore()
+		store := transactions.NewInMemStore(8)
 		err := store.AddBatch("test", []float64{1, 2, 3, 4, 5})
 		assert.Nil(t, err)
 

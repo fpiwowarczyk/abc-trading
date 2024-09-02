@@ -11,10 +11,12 @@ import (
 )
 
 func main() {
+	cfg, err := config.NewConfig()
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
 
-	inMemStore := transactions.NewInMemStore()
-
-	cfg := config.NewConfig()
+	inMemStore := transactions.NewInMemStore(cfg.MaxK)
 
 	srv := handler.NewHandler(
 		log.New(log.Writer(), "", log.LstdFlags),
@@ -23,11 +25,10 @@ func main() {
 	)
 
 	httpSrv := &http.Server{
-		Addr:    fmt.Sprintf(":%d", 8080), // TODO move it to config
+		Addr:    fmt.Sprintf(":%d", cfg.Port),
 		Handler: srv,
 	}
 
-	// TODO Maybe move it to goroutine for grafeful shutdown
 	log.Printf("Server is listening on %s", httpSrv.Addr)
 	if err := httpSrv.ListenAndServe(); err != nil {
 		log.Fatalf("Server failed to start: %v", err)

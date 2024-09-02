@@ -18,7 +18,7 @@ func NewHandler(
 ) http.Handler {
 
 	mux := http.NewServeMux()
-	addRoutes(mux, transactionsStore)
+	addRoutes(mux, transactionsStore, cfg)
 
 	var handler http.Handler = mux
 	handler = logRequest(logger, handler)
@@ -26,9 +26,9 @@ func NewHandler(
 	return handler
 }
 
-func addRoutes(mux *http.ServeMux, transactionsStore transactions.Store) {
+func addRoutes(mux *http.ServeMux, transactionsStore transactions.Store, cfg *config.Config) {
 	mux.Handle("/", http.NotFoundHandler())
-	mux.Handle("POST /add_batch/", handleAddBatch(transactionsStore))
+	mux.Handle("POST /add_batch/", handleAddBatch(transactionsStore, cfg.MaxBatch))
 	mux.Handle("GET /stats/", handleStats(transactionsStore))
 }
 
@@ -36,9 +36,7 @@ func addRoutes(mux *http.ServeMux, transactionsStore transactions.Store) {
 //
 // Example request:
 // curl -X POST -d '{"symbol":"AAPL","values":[1,2,3,4,5,6,7,8,9,0]}' http://localhost:8080/add_batch/
-func handleAddBatch(transactionsStore transactions.Store) http.HandlerFunc {
-	const maxBatchSize = 10_000
-
+func handleAddBatch(transactionsStore transactions.Store, maxBatchSize int) http.HandlerFunc {
 	type request struct {
 		Symbol string    `json:"symbol"`
 		Values []float64 `json:"values"`

@@ -43,4 +43,17 @@ curl -X POST -d '{"symbol":"AAPL","values":[1,2,3,4,5,6,7,8,9,0]}' http://localh
 
 It will add 10 new prices for symbol AAPL. After that next GET request will include statistics for this values.
 
+## About language and framework
 
+This project was written purely in golang without ANY depenency beside using
+standard library. Go is simplistic language that it perfect for writting such
+small services and it doesn't need anything beside that.
+
+Tests of code are placed in the same directory but in *_test.go directory. You can refer to them
+as to examples how to use given parts of the code.
+
+Most of the code is placed in `internal` directory because it blocks using this code as
+dependency in different project. I made it on purpose because code is suited only for 
+this project and should not be used anywhere else. Nothing here is ready for production usage any anything like that.
+
+All public/exported functions have godoc comments as it is good practice in golang.

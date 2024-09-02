@@ -7,25 +7,21 @@ import (
 	"github.com/fpiwowarczyk/abc-trading/internal/calculations"
 )
 
-const (
-	// MaxK is a exponent of a power of 10, which is used to calculate the maximal number of data
-	// that can be stored for single symbol.
-	MaxK = 8
-)
-
 type Data struct {
 	LastPoint float64
 	Buckets   []*Bucket
 
 	Points []float64
+
+	MaxK int
 }
 
 // New creates a new Data strucutre that represends data stored for single symbol.
 // During this operation data is divided into buckets, which are used to store last n points.
 // Number of buckets is specified by MaxK.
-func New(added []float64) *Data {
+func New(added []float64, maxK int) *Data {
 	var buckets []*Bucket
-	for k := range MaxK {
+	for k := range maxK {
 		buckets = append(buckets, &Bucket{
 			Size:   int(math.Pow(10, float64(k+1))),
 			Points: make([]float64, 0),
@@ -35,9 +31,9 @@ func New(added []float64) *Data {
 	var lastBucket *Bucket
 	var statsCalculatedForWholeSet bool
 
-	for _, b := range buckets {
+	for _, bucket := range buckets {
 		if statsCalculatedForWholeSet {
-			b.setStats(
+			bucket.SetStats(
 				lastBucket.Min, lastBucket.Max,
 				lastBucket.Avg, lastBucket.Varian,
 				lastBucket.Sum, lastBucket.SumSq,
@@ -46,28 +42,29 @@ func New(added []float64) *Data {
 			continue
 		}
 
-		if b.cantFitIntoBucket(len(added)) {
-			b.Points = added[len(added)-b.Size:]
+		if bucket.CantFitIntoBucket(len(added)) {
+			bucket.Points = added[len(added)-bucket.Size:]
 		} else {
-			b.Points = added
+			bucket.Points = added
 			statsCalculatedForWholeSet = true
 		}
 
-		b.Min, b.Max, b.Sum, b.SumSq = calculations.MinMaxSumSumSq(b.Points)
-		b.Avg, b.Varian = calculations.RollingAvgVar(
+		bucket.Min, bucket.Max, bucket.Sum, bucket.SumSq = calculations.MinMaxSumSumSq(bucket.Points)
+		bucket.Avg, bucket.Varian = calculations.RollingAvgVar(
 			0.0, 0.0,
 			0.0, 0.0,
-			b.Sum, b.SumSq,
+			bucket.Sum, bucket.SumSq,
 			0.0, 0.0,
-			len(b.Points))
+			len(bucket.Points))
 
-		lastBucket = b
+		lastBucket = bucket
 	}
 
 	return &Data{
 		LastPoint: added[len(added)-1],
 		Buckets:   buckets,
 		Points:    added,
+		MaxK:      maxK,
 	}
 }
 
@@ -79,16 +76,16 @@ func (d *Data) Update(added []float64) *Data {
 	d.LastPoint = added[len(added)-1]
 	d.Points = append(d.Points, added...)
 
-	if len(d.Points) > int(math.Pow(10, MaxK)) {
-		d.Points = d.Points[len(d.Points)-int(math.Pow(10, MaxK)):]
+	if len(d.Points) > int(math.Pow(10, float64(d.MaxK))) {
+		d.Points = d.Points[len(d.Points)-int(math.Pow(10, float64(d.MaxK))):]
 	}
 
 	var lastBucket *Bucket
 	var calculatedForWholeSet bool
 
-	for _, b := range d.Buckets {
+	for _, bucket := range d.Buckets {
 		if calculatedForWholeSet {
-			b.setStats(
+			bucket.SetStats(
 				lastBucket.Min, lastBucket.Max,
 				lastBucket.Avg, lastBucket.Varian,
 				lastBucket.Sum, lastBucket.SumSq,
@@ -97,34 +94,34 @@ func (d *Data) Update(added []float64) *Data {
 			continue
 		}
 
-		var out []float64
-		if b.cantFitIntoBucket(len(added)) {
-			out = b.Points[:len(b.Points)+len(added)-b.Size]
-			b.Points = d.Points[len(d.Points)-b.Size:]
+		var removed []float64
+		if bucket.CantFitIntoBucket(len(added)) {
+			removed = bucket.Points[:len(bucket.Points)+len(added)-bucket.Size]
+			bucket.Points = d.Points[len(d.Points)-bucket.Size:]
 		} else {
 			calculatedForWholeSet = true
-			b.Points = append(b.Points, added...)
+			bucket.Points = append(bucket.Points, added...)
 		}
 
 		addedMin, addedMax, addedSum, addedSumSq := calculations.MinMaxSumSumSq(added)
-		_, _, outSum, outSumSq := calculations.MinMaxSumSumSq(out)
+		_, _, outSum, outSumSq := calculations.MinMaxSumSumSq(removed)
 
-		b.Avg, b.Varian = calculations.RollingAvgVar(b.Avg, b.Varian,
-			b.Sum, b.SumSq,
+		bucket.Avg, bucket.Varian = calculations.RollingAvgVar(bucket.Avg, bucket.Varian,
+			bucket.Sum, bucket.SumSq,
 			addedSum, addedSumSq,
 			outSum, outSumSq,
-			len(b.Points))
+			len(bucket.Points))
 
-		if slices.Contains(out, b.Min) || slices.Contains(out, b.Max) {
-			b.Min, b.Max, b.Sum, b.SumSq = calculations.MinMaxSumSumSq(b.Points)
+		if slices.Contains(removed, bucket.Min) || slices.Contains(removed, bucket.Max) {
+			bucket.Min, bucket.Max, bucket.Sum, bucket.SumSq = calculations.MinMaxSumSumSq(bucket.Points)
 		} else {
-			b.Min = math.Min(b.Min, addedMin)
-			b.Max = math.Max(b.Max, addedMax)
-			b.Sum += addedSum - outSum
-			b.SumSq += addedSumSq - outSumSq
+			bucket.Min = math.Min(bucket.Min, addedMin)
+			bucket.Max = math.Max(bucket.Max, addedMax)
+			bucket.Sum += addedSum - outSum
+			bucket.SumSq += addedSumSq - outSumSq
 		}
 
-		lastBucket = b
+		lastBucket = bucket
 	}
 
 	return d

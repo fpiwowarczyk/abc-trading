@@ -15,11 +15,11 @@ type Bucket struct {
 	SumSq  float64
 }
 
-func (b *Bucket) cantFitIntoBucket(addedPointsSize int) bool {
+func (b *Bucket) CantFitIntoBucket(addedPointsSize int) bool {
 	return len(b.Points)+addedPointsSize > b.Size
 }
 
-func (b *Bucket) setStats(min, max, avg, varian, sum, sumSq float64, points []float64) {
+func (b *Bucket) SetStats(min, max, avg, varian, sum, sumSq float64, points []float64) {
 	b.Min = min
 	b.Max = max
 	b.Avg = avg

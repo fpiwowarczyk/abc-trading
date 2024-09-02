@@ -27,7 +27,7 @@ func NewInMemStore() *InMemStore {
 func (i *InMemStore) AddBatch(symbolName string, values []float64) error {
 	s, exist := i.symbols.Get(symbolName)
 	if !exist {
-		i.symbols.Set(symbolName, symbol.New(values))
+		i.symbols.Set(symbolName, symbol.New(values, 8))
 		return nil
 	}
 

@@ -46,8 +46,8 @@ It will add 10 new prices for symbol AAPL. After that next GET request will incl
 ## About language and framework
 
 This project was written purely in golang without ANY depenency beside using
-standard library. Go is simplistic language that it perfect for writting such
-small services and it doesn't need anything beside that.
+standard library(OK im using assetion lib for testing purpose, but in app code there is no dependencies :)).
+Go is simplistic language that it perfect for writting suchsmall services and it doesn't need anything beside that.
 
 Tests of code are placed in the same directory but in *_test.go directory. You can refer to them
 as to examples how to use given parts of the code.
